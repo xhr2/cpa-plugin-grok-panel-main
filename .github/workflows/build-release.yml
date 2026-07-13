@@ -3,45 +3,22 @@ name: Build and Release
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
-  pull_request:
   workflow_dispatch:
-    inputs:
-      create_release:
-        description: "Create a GitHub Release (needs version)"
-        type: boolean
-        default: false
-      version:
-        description: "Version without v prefix, e.g. 1.1.21"
-        type: string
-        required: false
-        default: ""
 
 permissions:
   contents: write
 
 env:
   GO_VERSION: "1.24.x"
-  PLUGIN_ID: grok-panel
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Test
-        run: go test ./...
-      - name: Vet
-        run: go vet ./...
-
   build:
     name: Build linux/amd64
-    needs: test
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      asset: ${{ steps.meta.outputs.asset }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,71 +26,52 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install gcc
+      - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc
+          sudo apt-get install -y gcc zip
+
+      - name: Test
+        run: go test ./...
 
       - name: Resolve version
         id: meta
-        shell: bash
         run: |
           set -euo pipefail
-          SRC_VERSION=$(grep -E 'pluginVersion\s+=' main.go | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME}"
-            VERSION="${TAG#v}"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
-            VERSION="${{ inputs.version }}"
-            VERSION="${VERSION#v}"
-            TAG="v${VERSION}"
-          else
-            VERSION="${SRC_VERSION}"
-            TAG="v${VERSION}"
-          fi
+          VERSION=$(grep -E 'pluginVersion\s+=' main.go | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
           if [[ -z "${VERSION}" ]]; then
-            echo "version is empty" >&2
+            echo "pluginVersion not found in main.go" >&2
             exit 1
           fi
-          if [[ "${GITHUB_REF_TYPE}" == "tag" || ( "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.create_release }}" == "true" ) ]]; then
-            if [[ "${SRC_VERSION}" != "${VERSION}" ]]; then
-              echo "main.go pluginVersion=${SRC_VERSION} does not match release version=${VERSION}" >&2
-              exit 1
-            fi
-          fi
+          TAG="v${VERSION}"
           ASSET="grok-panel_${VERSION}_linux_amd64.zip"
           {
             echo "version=${VERSION}"
             echo "tag=${TAG}"
             echo "asset=${ASSET}"
           } >> "$GITHUB_OUTPUT"
-          echo "Resolved version=${VERSION} asset=${ASSET}"
+          echo "version=${VERSION} tag=${TAG} asset=${ASSET}"
 
       - name: Build plugin library
         env:
+          CGO_ENABLED: "1"
           GOOS: linux
           GOARCH: amd64
-          CGO_ENABLED: "1"
         run: |
           set -euo pipefail
           mkdir -p dist
-          OUT="dist/grok-panel.so"
-          echo "GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=${CGO_ENABLED}"
-          gcc --version
-          go build -buildmode=c-shared -trimpath -ldflags="-s -w" -o "${OUT}" .
+          go build -buildmode=c-shared -trimpath -ldflags="-s -w" -o dist/grok-panel.so .
+          rm -f dist/*.h
+          test -f dist/grok-panel.so
           ls -lah dist/
-          test -f "${OUT}"
 
       - name: Package zip
         run: |
           set -euo pipefail
           cd dist
-          test -f grok-panel.so
-          rm -f *.h
-          ASSET="${{ steps.meta.outputs.asset }}"
-          zip -9 "${ASSET}" grok-panel.so
+          zip -9 "${{ steps.meta.outputs.asset }}" grok-panel.so
           ls -lah
-          test -f "${ASSET}"
+          test -f "${{ steps.meta.outputs.asset }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -126,35 +84,9 @@ jobs:
   release:
     name: Publish Release
     needs: build
-    if: >
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && inputs.create_release == true && inputs.version != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Resolve version
-        id: meta
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-            TAG="${GITHUB_REF_NAME}"
-          else
-            VERSION="${{ inputs.version }}"
-            VERSION="${VERSION#v}"
-            TAG="v${VERSION}"
-          fi
-          SRC_VERSION=$(grep -E 'pluginVersion\s+=' main.go | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
-          if [[ "${SRC_VERSION}" != "${VERSION}" ]]; then
-            echo "main.go pluginVersion=${SRC_VERSION} does not match release version=${VERSION}" >&2
-            exit 1
-          fi
-          {
-            echo "version=${VERSION}"
-            echo "tag=${TAG}"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -167,15 +99,16 @@ jobs:
           set -euo pipefail
           cd out
           ls -lah
-          test -f grok-panel_*.zip || { echo "missing zip"; ls -la; exit 1; }
           sha256sum grok-panel_*.zip | tee checksums.txt
 
-      - name: Create or update GitHub Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
+          make_latest: true
           files: |
             out/grok-panel_*.zip
             out/checksums.txt
