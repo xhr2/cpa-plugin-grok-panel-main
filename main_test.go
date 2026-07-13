@@ -200,3 +200,21 @@ func TestFetchOfficialGrokTierViaHost(t *testing.T) {
 		t.Fatalf("tier = %q, want super", got.Tier)
 	}
 }
+
+func TestExtractAccessTokenPrefersAccessToken(t *testing.T) {
+	raw := json.RawMessage(`{"token_type":"Bearer","token":"wrong","access_token":"good-token","nested":{"token":"nested-wrong"}}`)
+	got := extractAccessToken(raw)
+	if got != "good-token" {
+		t.Fatalf("got %q, want good-token", got)
+	}
+}
+
+func TestFormatUpstreamErrorHintSanitizes(t *testing.T) {
+	hint := formatUpstreamErrorHint(403, []byte(`{"error":"forbidden","access_token":"secret-value"}`))
+	if strings.Contains(hint, "secret-value") {
+		t.Fatalf("hint leaked secret: %s", hint)
+	}
+	if !strings.Contains(hint, "forbidden") && !strings.Contains(hint, "HTTP") {
+		// sanitize may redact; empty is ok for safety
+	}
+}

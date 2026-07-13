@@ -2,7 +2,7 @@
 
 > 为 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 打造的 Grok 账号管理面板，一个插件搞定统计、分类、健康检查和安全清理。
 
-**版本** `v1.1.21` ｜ **平台** Linux / macOS / Windows ｜ **语言** 中文 ｜ **License** MIT
+**版本** `v1.1.20` ｜ **平台** Linux / macOS / Windows ｜ **语言** 中文 ｜ **License** MIT
 
 **仓库地址**：https://github.com/TizenryA/cpa-plugin-grok-panel
 
@@ -153,7 +153,7 @@ plugins:
 ```bash
 curl -X POST \
   -H "Authorization: Bearer YOUR_MANAGEMENT_KEY" \
-  "https://YOUR_CPA_HOST/v0/management/plugin-store/grok-panel/install?source=YOUR_SOURCE_ID&version=v1.1.21"
+  "https://YOUR_CPA_HOST/v0/management/plugin-store/grok-panel/install?source=YOUR_SOURCE_ID&version=v1.1.20"
 ```
 
 > 这里的管理密钥只用于执行安装操作，不会写入插件。
@@ -167,23 +167,23 @@ curl -X POST \
 安装包**只发布在** [GitHub Releases](https://github.com/TizenryA/cpa-plugin-grok-panel/releases)（仓库源码树不再存放 zip / `.so`）。下载与宿主匹配的压缩包：
 
 ```text
-grok-panel_1.1.21_linux_amd64.zip
-grok-panel_1.1.21_linux_arm64.zip
-grok-panel_1.1.21_darwin_amd64.zip
-grok-panel_1.1.21_darwin_arm64.zip
-grok-panel_1.1.21_windows_amd64.zip
-grok-panel_1.1.21_windows_arm64.zip
+grok-panel_1.1.20_linux_amd64.zip
+grok-panel_1.1.20_linux_arm64.zip
+grok-panel_1.1.20_darwin_amd64.zip
+grok-panel_1.1.20_darwin_arm64.zip
+grok-panel_1.1.20_windows_amd64.zip
+grok-panel_1.1.20_windows_arm64.zip
 ```
 
 解压后将插件库文件放入 CPA 配置的插件目录：
 
 ```text
-plugins/linux/amd64/grok-panel-v1.1.21.so
-plugins/linux/arm64/grok-panel-v1.1.21.so
-plugins/darwin/amd64/grok-panel-v1.1.21.dylib
-plugins/darwin/arm64/grok-panel-v1.1.21.dylib
-plugins/windows/amd64/grok-panel-v1.1.21.dll
-plugins/windows/arm64/grok-panel-v1.1.21.dll
+plugins/linux/amd64/grok-panel-v1.1.20.so
+plugins/linux/arm64/grok-panel-v1.1.20.so
+plugins/darwin/amd64/grok-panel-v1.1.20.dylib
+plugins/darwin/arm64/grok-panel-v1.1.20.dylib
+plugins/windows/amd64/grok-panel-v1.1.20.dll
+plugins/windows/arm64/grok-panel-v1.1.20.dll
 ```
 
 CPA 安装时会按宿主机 `GOOS/GOARCH` 自动选择对应 zip。当前已发布：
@@ -236,6 +236,26 @@ go build -buildmode=c-shared -o grok-panel.so .
 ```
 
 交叉编译产物与 zip **不要提交进仓库**，发版时上传到 GitHub Release 即可。仓库仅保留源码与 `registry.json`。
+
+## GitHub Actions 自动编译
+
+仓库已包含 `.github/workflows/build-release.yml`：
+
+- **push 到 main/master** 或 **手动 Run workflow**：自动测试 → 编译 **linux/amd64** → **直接发布 GitHub Release**
+- 版本号读取 `main.go` 里的 `pluginVersion`（例如 `1.1.21` → 标签 `v1.1.21`）
+- 产物：`grok-panel_<version>_linux_amd64.zip` + `checksums.txt`
+
+### 使用方式
+
+```bash
+# 确认 main.go 的 pluginVersion，以及 registry.json 的 version 一致
+git add .
+git commit -m "release: v1.1.21"
+git push origin main
+# push 成功后 Actions 自动编译并发布，无需再打 tag
+```
+
+CPA 的 `store-sources` 若指向你的仓库 `registry.json`，刷新插件商店即可安装新版本。
 
 ## 仓库结构
 

@@ -8,7 +8,7 @@ const htmlPage = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<title>Grok 面板 v1.1.21</title>
+<title>Grok 面板 v1.1.23</title>
 <style>
 :root{
 --bg:#14161c;--card:#1c1f28;--card2:#252a36;--ink:#eef1f7;--muted:#9aa3b5;--line:#343b4a;--soft:#2a303c;--soft2:#353c4c;
@@ -153,16 +153,29 @@ border:.1vw solid var(--line);padding:.85vh .9vw;border-radius:var(--radius-lg)
 .pagebar .page-info b{color:var(--ink)}
 .pagebar .field{margin:0}
 .pagebar select{min-width:8vw}
-.table-wrap{max-height:52vh;overflow:auto;border:.1vw solid var(--line);background:var(--card);border-radius:var(--radius-xl)}
-table{border-collapse:separate;border-spacing:0;width:142vw;min-width:142vw;background:transparent}
-th,td{text-align:left;padding:.78vh .7vw;border-bottom:.08vw solid var(--line);font-size:.76vw;vertical-align:top}
+.table-wrap{max-height:58vh;overflow:auto;border:.1vw solid var(--line);background:var(--card);border-radius:var(--radius-xl);width:100%}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:0;table-layout:fixed;background:transparent}
+th,td{text-align:left;padding:.7vh .55vw;border-bottom:.08vw solid var(--line);font-size:.74vw;vertical-align:middle}
 th{
 position:sticky;top:0;z-index:4;background:var(--card2);color:var(--ink);font-family:var(--font-display);
-font-weight:800;text-transform:none;font-size:.7vw;letter-spacing:.01vw;border-bottom:.12vw solid var(--line)
+font-weight:800;text-transform:none;font-size:.68vw;letter-spacing:.01vw;border-bottom:.12vw solid var(--line);white-space:nowrap
 }
 tr:hover{background:color-mix(in srgb,var(--card2) 78%,transparent)}
-.email-cell{width:27vw;word-break:break-all}
-.actions-cell{display:flex;gap:.45vw;flex-wrap:wrap}
+.col-check{width:3.2vw;text-align:center}
+.col-idx{width:3.2vw;color:var(--muted);font-variant-numeric:tabular-nums}
+.col-type{width:7vw}
+.col-health{width:9vw}
+.col-usage{width:16vw}
+.col-actions{width:14vw}
+.email-cell{width:auto;min-width:0;word-break:break-word;overflow-wrap:anywhere}
+.email-main{font-weight:700;line-height:1.25}
+.email-meta{display:flex;flex-wrap:wrap;gap:.35vw;margin-top:.35vh;align-items:center}
+.num-cell{font-variant-numeric:tabular-nums;white-space:nowrap}
+.usage-cell .metric-compact{display:flex;justify-content:space-between;gap:.4vw;font-size:.66vw;color:var(--muted);font-weight:650;margin-bottom:.3vh}
+.usage-cell .metric-compact b{color:var(--ink);font-family:var(--font-num)}
+.usage-cell .bar-container.small{width:100%;max-width:100%;height:.85vh;margin-top:.2vh}
+.actions-cell{display:flex;gap:.35vw;flex-wrap:wrap;align-items:center}
+.actions-cell button{padding:.45vh .55vw;min-height:3.1vh;font-size:.68vw;border-radius:var(--radius-pill)}
 .tag{
 display:inline-block;padding:.35vh .65vw;border:.08vw solid;font-size:.66vw;font-weight:750;letter-spacing:.01vw;
 text-transform:none;min-width:4.6vw;text-align:center;border-radius:var(--radius-pill)
@@ -228,7 +241,7 @@ h2{font-size:3.7vw}
 .stat-label,.stat-sub,.field label,.checkline,.help-text,.summary-row{font-size:2.6vw}
 .stat-value{font-size:5.4vw}
 .bar-container{max-width:100%;height:1.2vh}
-.bar-container.small{max-width:34vw;height:1vh}
+.bar-container.small{max-width:100%;height:1vh}
 .number-input,.search-box,.select-filter,.sort-filter{width:100%}
 button,input,select{font-size:2.8vw;min-height:5.2vh;border-radius:2.8vw;padding:.9vh 2.6vw}
 input[type=checkbox]{width:4vw;height:4vw;min-height:4vw;border-radius:1.1vw}
@@ -241,13 +254,13 @@ input[type=checkbox]:checked::after{width:.9vw;height:1.7vw;border-width:0 .45vw
 .chart-bar{flex-basis:3vw;border-radius:1vw 1vw .4vw .4vw}
 .chart-bar:hover::after{font-size:2.4vw;width:44vw;bottom:16vh}
 .table-wrap{max-height:55vh;border-radius:3.2vw}
-table{width:230vw;min-width:230vw}
+table{width:100%;min-width:0}
 th,td{font-size:2.6vw;padding:.95vh 1.4vw}
 th{font-size:2.25vw}
 .tag{font-size:2.25vw;min-width:12vw;padding:.4vh 1.2vw}
 .cell-sub,.metric-line span,.meter-head{font-size:2.2vw}
 .metric-line b{font-size:3vw}
-.actions-cell button{font-size:2.3vw;min-height:4.8vh;padding:.65vh 1.5vw}
+.actions-cell button{font-size:2.3vw;min-height:4.8vh;padding:.65vh 1.5vw}.col-check{width:8vw}.col-idx{width:8vw}.col-type{width:16vw}.col-health{width:18vw}.col-usage{width:24vw}.col-actions{width:28vw}.actions-cell button{font-size:2.2vw;min-height:4.4vh;padding:.55vh 1.1vw}.email-main{font-size:2.7vw}.usage-cell .metric-compact{font-size:2.1vw}
 .panel-tabs{top:.3vh;gap:1vw;padding:.7vh 1vw;border-radius:3.4vw}
 .panel-tab{font-size:2.7vw;min-height:5.2vh;padding:.8vh 1vw}
 }
@@ -342,7 +355,7 @@ input:focus,select:focus,button:focus{outline-color:var(--focus)}
 <span class="spacer"></span>
 <span class="page-info" id="pageRange">显示 0-0 / 0</span>
 </div>
-<div class="table-wrap"><table><thead><tr><th>选</th><th>#</th><th>邮箱</th><th>类型</th><th>健康</th><th>状态</th><th>成功</th><th>失败</th><th>估算 Token</th><th>用量</th><th>操作</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th class="col-check">选</th><th class="col-idx">#</th><th>账号</th><th class="col-type">类型</th><th class="col-health">健康</th><th class="col-usage">用量</th><th class="col-actions">操作</th></tr></thead><tbody id="tableBody"></tbody></table></div>
 <div class="pagebar">
 <button type="button" id="pagePrevBtn2">上一页</button>
 <span class="page-info" id="pageInfo2">第 <b>1</b> / 1 页</span>
@@ -354,7 +367,7 @@ input:focus,select:focus,button:focus{outline-color:var(--focus)}
 </div>
 <script>
 /*
-Frontend v1.1.21 same-origin endpoint contract for a matching backend.
+Frontend v1.1.23 same-origin endpoint contract for a matching backend.
 Delete/check reuse CPA management auth. Key resolution order:
 1) panel-local saved management key
 2) parent/local cli-proxy-auth (remember password)
@@ -441,7 +454,7 @@ function getPageMeta(list){list=list||[];var size=pageSize();var total=list.leng
 function renderPager(meta){var info='第 <b>'+meta.page+'</b> / '+meta.totalPages+' 页 · 每页 '+meta.size;var range=meta.total?('显示 '+(meta.start+1)+'-'+meta.end+' / '+meta.total):'显示 0-0 / 0';['pageInfo','pageInfo2'].forEach(function(id){if(byId(id))byId(id).innerHTML=info});if(byId('pageRange'))byId('pageRange').textContent=range;var atFirst=meta.page<=1;var atLast=meta.page>=meta.totalPages;[['pageFirstBtn',atFirst],['pagePrevBtn',atFirst],['pagePrevBtn2',atFirst],['pageNextBtn',atLast],['pageNextBtn2',atLast],['pageLastBtn',atLast]].forEach(function(pair){var el=byId(pair[0]);if(el)el.disabled=!!busy||!!pair[1]})}
 function getFilteredData(){var s=byId('searchBox')?byId('searchBox').value.toLowerCase().trim():'';var sf=byId('statusFilter')?byId('statusFilter').value:'all';var tf=byId('typeFilter')?byId('typeFilter').value:'all';var hf=byId('healthFilter')?byId('healthFilter').value:'all';var uf=byId('usageFilter')?byId('usageFilter').value:'all';var arr=allData.filter(function(x){var email=getEmail(x).toLowerCase();var st=getStatus(x).toLowerCase();var typ=classifyType(x);var health=deriveHealth(x);var pct=usagePct(x);if(s&&email.indexOf(s)<0&&st.indexOf(s)<0&&typ.label.toLowerCase().indexOf(s)<0&&health.label.indexOf(s)<0)return false;if(sf!=='all'&&statusKey(x)!==sf)return false;if(tf!=='all'&&typ.key!==tf)return false;if(hf!=='all'&&health.key!==hf)return false;if(uf==='unused'&&(Number(x.success)||0)!==0)return false;if(uf==='low'&&pct>=50)return false;if(uf==='warn'&&(pct<50||pct>=80))return false;if(uf==='high'&&pct<80)return false;return true});var sort=byId('sortFilter')?byId('sortFilter').value:'success_desc';arr.sort(function(a,b){if(sort==='failed_desc')return(Number(b.failed)||0)-(Number(a.failed)||0);if(sort==='usage_desc')return usagePct(b)-usagePct(a);if(sort==='health_asc')return healthRank(a)-healthRank(b);if(sort==='type_asc')return classifyType(a).key<classifyType(b).key?-1:1;if(sort==='email_asc')return getEmail(a)<getEmail(b)?-1:1;return(Number(b.success)||0)-(Number(a.success)||0)});return arr}
 function healthRank(x){var order={invalid:0,disabled:1,unavailable:2,error:2,warn:3,unknown:4,healthy:5};return order[deriveHealth(x).key]===undefined?9:order[deriveHealth(x).key]}
-function renderTable(){var tbody=byId('tableBody');if(!tbody)return;var f=getFilteredData();var meta=getPageMeta(f);renderPager(meta);tbody.innerHTML='';meta.rows.forEach(function(x,i){var email=getEmail(x);var absIndex=meta.start+i;var key=makeRowKey(x,absIndex);var su=Number(x.success)||0;var fa=Number(x.failed)||0;var totalReq=su+fa;var successPct=totalReq>0?su/totalReq*100:0;var et=su*tokensPerReq();var tl=tokenLimit();var pct=usagePct(x);var bc=pct>80?'danger':pct>50?'warn':'';var typ=classifyType(x);var h=deriveHealth(x);var prot=protectReason(x);var armed=isArmed('delete:'+key);var disabled=busy||!email||!!prot;var tr=document.createElement('tr');tr.className='row-'+h.key;var protectedText=prot?'<div class="cell-sub">⚠ '+esc(prot)+'</div>':'';var healthDetail=h.detail?'<div class="cell-sub">'+esc(h.detail)+'</div>':'';var healthHtml='<span class="health-indicator"><span class="health-dot '+esc(h.key)+'"></span><span class="tag '+esc(h.key)+'">'+esc(h.label)+'</span></span>'+healthDetail;var successHtml='<div class="metric-line"><b>'+fmt(su)+'</b><span>成功</span></div><div class="cell-sub">成功率 '+successPct.toFixed(1)+'% · '+fmt(su)+' / '+fmt(totalReq)+'</div>';var failedHtml=fa>0?'<div class="metric-line red-text"><b>'+fmt(fa)+'</b><span>失败</span></div><div class="cell-sub">失败 '+fmt(fa)+' / '+fmt(totalReq)+'</div>':'<div class="metric-line"><b>0</b><span>失败</span></div><div class="cell-sub">暂无失败请求</div>';var tokenHtml='<div class="metric-line"><b>'+fmt(et)+'</b><span>估算</span></div><div class="cell-sub">'+fmt(su)+' 次成功 × '+fmt(tokensPerReq())+' token</div>';var usageHtml='<div class="meter-head"><b>'+pct.toFixed(1)+'%</b><span>'+fmt(et)+' / '+fmt(tl)+'</span></div><div class="bar-container small"><div class="bar-fill '+bc+'" style="width:'+meterWidth(pct,'row')+'"></div></div>';tr.innerHTML='<td><input type="checkbox" class="row-select" data-key="'+esc(key)+'" data-email="'+esc(email)+'" '+(selected[key]?'checked':'')+' '+(!email||busy?'disabled':'')+'></td><td>'+(absIndex+1)+'</td><td class="email-cell">'+esc(email||'?')+protectedText+'</td><td><span class="tag '+esc(typ.key)+'">'+esc(typ.label)+'</span></td><td>'+healthHtml+'</td><td><span class="tag '+esc(statusKey(x))+'">'+esc(statusLabel(statusKey(x)))+'</span><div class="cell-sub">'+esc(getStatus(x)||'-')+'</div></td><td>'+successHtml+'</td><td>'+failedHtml+'</td><td>'+tokenHtml+'</td><td>'+usageHtml+'</td><td><div class="actions-cell"><button data-act="check" data-key="'+esc(key)+'" '+(busy||!email?'disabled':'')+'>检查</button><button data-act="verify-tier" data-key="'+esc(key)+'" '+(busy||!x.auth_index?'disabled':'')+'>核实套餐</button><button data-act="delete" data-key="'+esc(key)+'" '+(disabled?'disabled':'')+' class="'+(armed?'armed':'')+'">'+(armed?'确认删除':'删除')+'</button></div></td>';tbody.appendChild(tr)});if(!meta.rows.length)tbody.innerHTML='<tr><td colspan="11" class="muted" style="padding:3vh;text-align:center">没有匹配的账号</td></tr>';renderSummary(f);updateToolbarState(meta.rows)}
+function renderTable(){var tbody=byId('tableBody');if(!tbody)return;var f=getFilteredData();var meta=getPageMeta(f);renderPager(meta);tbody.innerHTML='';meta.rows.forEach(function(x,i){var email=getEmail(x);var absIndex=meta.start+i;var key=makeRowKey(x,absIndex);var su=Number(x.success)||0;var fa=Number(x.failed)||0;var totalReq=su+fa;var successPct=totalReq>0?su/totalReq*100:0;var et=su*tokensPerReq();var tl=tokenLimit();var pct=usagePct(x);var bc=pct>80?'danger':pct>50?'warn':'';var typ=classifyType(x);var h=deriveHealth(x);var prot=protectReason(x);var armed=isArmed('delete:'+key);var disabled=busy||!email||!!prot;var tr=document.createElement('tr');tr.className='row-'+h.key;var protectedText=prot?'<div class="cell-sub">⚠ '+esc(prot)+'</div>':'';var healthDetail=h.detail?'<div class="cell-sub">'+esc(h.detail)+'</div>':'';var statusSub=getStatus(x)||'-';var accountHtml='<div class="email-main">'+esc(email||'?')+'</div><div class="email-meta"><span class="tag '+esc(statusKey(x))+'">'+esc(statusLabel(statusKey(x)))+'</span><span class="cell-sub">'+esc(statusSub)+'</span></div>'+protectedText;var healthHtml='<span class="health-indicator"><span class="health-dot '+esc(h.key)+'"></span><span class="tag '+esc(h.key)+'">'+esc(h.label)+'</span></span>'+healthDetail;var usageHtml='<div class="usage-cell"><div class="metric-compact"><span>成功 <b>'+fmt(su)+'</b></span><span>失败 <b class="'+(fa>0?'red-text':'')+'">'+fmt(fa)+'</b></span></div><div class="metric-compact"><span>成功率 <b>'+successPct.toFixed(0)+'%</b></span><span><b>'+fmt(et)+'</b>/'+fmt(tl)+'</span></div><div class="bar-container small"><div class="bar-fill '+bc+'" style="width:'+meterWidth(pct,'row')+'"></div></div></div>';tr.innerHTML='<td class="col-check"><input type="checkbox" class="row-select" data-key="'+esc(key)+'" data-email="'+esc(email)+'" '+(selected[key]?'checked':'')+' '+(!email||busy?'disabled':'')+'></td><td class="col-idx num-cell">'+(absIndex+1)+'</td><td class="email-cell">'+accountHtml+'</td><td class="col-type"><span class="tag '+esc(typ.key)+'">'+esc(typ.label)+'</span></td><td class="col-health">'+healthHtml+'</td><td class="col-usage">'+usageHtml+'</td><td class="col-actions"><div class="actions-cell"><button data-act="check" data-key="'+esc(key)+'" '+(busy||!email?'disabled':'')+'>检查</button><button data-act="verify-tier" data-key="'+esc(key)+'" '+(busy||!x.auth_index?'disabled':'')+'>核实</button><button data-act="delete" data-key="'+esc(key)+'" '+(disabled?'disabled':'')+' class="'+(armed?'armed':'')+'">'+(armed?'确认':'删除')+'</button></div></td>';tbody.appendChild(tr)});if(!meta.rows.length)tbody.innerHTML='<tr><td colspan="7" class="muted" style="padding:3vh;text-align:center">没有匹配的账号</td></tr>';renderSummary(f);updateToolbarState(meta.rows)}
 
 function renderStatsOnlySelection(){byId('statSelected').textContent=getSelectedEmails().length;byId('statSelectedSub').textContent=getFilteredData().length+' 个当前可见'}
 function renderSummary(f){var used=f.filter(function(x){return(Number(x.success)||0)>0}).length;var avail=f.filter(function(x){return(Number(x.success)||0)===0&&!x.disabled}).length;var ts=sum(f,'success');var tf=sum(f,'failed');var invalid=f.filter(isInvalidCandidate).length;var clean=cleanupCandidates(f).length;byId('sumCount').textContent=f.length;byId('sumUsed').textContent=used;byId('sumAvail').textContent=avail;byId('sumRate').textContent=(ts+tf>0?(ts/(ts+tf)*100).toFixed(1):0)+'%';byId('sumInvalid').textContent=invalid;byId('sumCleanup').textContent=clean;var meta=getPageMeta(f);byId('filterInfo').textContent=f.length+' / '+allData.length+' 过滤，本页 '+(meta.total?(meta.start+1)+'-'+meta.end:'0')+'，'+clean+' 已满足安全清理条件'}

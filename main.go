@@ -74,7 +74,7 @@ import (
 const (
 	abiVersion    uint32 = 1
 	pluginName           = "grok-panel"
-	pluginVersion        = "1.1.21"
+	pluginVersion        = "1.1.23"
 	xaiProvider          = "xai"
 
 	resourcePanelPath     = "/panel"
@@ -738,10 +738,16 @@ func handleVerifyTier(req managementRequest, method string) ([]byte, error) {
 	classification := local
 	if ok {
 		if token := extractAccessToken(raw); token != "" {
-			if verified, verifyErr := fetchOfficialGrokTier(token); verifyErr == nil {
+			cookie := extractAuthCookie(raw)
+			if verified, verifyErr := fetchOfficialGrokTierWithCookie(token, cookie); verifyErr == nil {
 				classification = verified
 			} else if classification.Tier == tierUnknown {
 				classification.Detail = "官方订阅核实失败：" + sanitizeText(verifyErr.Error())
+			} else {
+				// Keep local tier, but surface verify failure for operators.
+				if classification.Detail == "" {
+					classification.Detail = "本地分类保留；官方核实失败：" + sanitizeText(verifyErr.Error())
+				}
 			}
 		} else if classification.Tier == tierUnknown {
 			classification.Detail = "auth 文件未提供可用 access_token"
@@ -761,33 +767,54 @@ func extractAccessToken(raw json.RawMessage) string {
 	if dec.Decode(&value) != nil {
 		return ""
 	}
-	var walk func(any) string
-	walk = func(v any) string {
-		switch x := v.(type) {
-		case map[string]any:
-			for k, val := range x {
-				n := normalizeLoose(k)
-				if n == "accesstoken" || n == "token" {
-					if s, yes := val.(string); yes && strings.TrimSpace(s) != "" {
-						return strings.TrimSpace(s)
-					}
-				}
+	// Prefer access_token over generic "token" so we never pick token_type-like values.
+	if s := walkAuthStringField(value, "accesstoken"); s != "" {
+		return s
+	}
+	return walkAuthStringField(value, "token")
+}
+
+func extractAuthCookie(raw json.RawMessage) string {
+	var value any
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if dec.Decode(&value) != nil {
+		return ""
+	}
+	for _, key := range []string{"cookie", "cookies", "ssocookie", "sessioncookie"} {
+		if s := walkAuthStringField(value, key); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func walkAuthStringField(v any, wantNorm string) string {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, val := range x {
+			if normalizeLoose(k) != wantNorm {
+				continue
 			}
-			for _, val := range x {
-				if s := walk(val); s != "" {
-					return s
-				}
-			}
-		case []any:
-			for _, val := range x {
-				if s := walk(val); s != "" {
+			if s, yes := val.(string); yes {
+				if s = strings.TrimSpace(s); s != "" {
 					return s
 				}
 			}
 		}
-		return ""
+		for _, val := range x {
+			if s := walkAuthStringField(val, wantNorm); s != "" {
+				return s
+			}
+		}
+	case []any:
+		for _, val := range x {
+			if s := walkAuthStringField(val, wantNorm); s != "" {
+				return s
+			}
+		}
 	}
-	return walk(value)
+	return ""
 }
 
 // hostHTTPRequest mirrors the CPA host.http.do request envelope.
@@ -824,26 +851,95 @@ func (r hostHTTPResponse) body() []byte {
 	return r.BodyAlt
 }
 
+// Align with CPA xAI CLI chat-proxy identity headers (internal/runtime/executor/xai_executor.go).
+const (
+	grokSubscriptionsURL   = "https://grok.com/rest/subscriptions"
+	xaiTokenAuthHeader     = "X-XAI-Token-Auth"
+	xaiTokenAuthValue      = "xai-grok-cli"
+	xaiClientVersionHeader = "x-grok-client-version"
+	xaiClientVersionValue  = "0.2.93"
+)
+
 func fetchOfficialGrokTier(token string) (authClassification, error) {
+	return fetchOfficialGrokTierWithCookie(token, "")
+}
+
+func fetchOfficialGrokTierWithCookie(token, cookie string) (authClassification, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return authClassification{}, fmt.Errorf("empty access_token")
+	}
+
+	// Try current CPA CLI identity first, then a browser-like fallback.
+	attempts := []map[string][]string{
+		grokSubscriptionHeaders(token, cookie, true),
+		grokSubscriptionHeaders(token, cookie, false),
+	}
+
+	var lastStatus int
+	var lastBody []byte
+	var lastErr error
+	for _, headers := range attempts {
+		body, status, err := doUpstreamHTTP(http.MethodGet, grokSubscriptionsURL, headers, nil)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		lastStatus = status
+		lastBody = body
+		if status == http.StatusOK {
+			if len(body) > 2<<20 {
+				body = body[:2<<20]
+			}
+			return classifyOfficialSubscriptions(body)
+		}
+		// 401 means token is wrong/expired; no point retrying header variants.
+		if status == http.StatusUnauthorized {
+			break
+		}
+	}
+	if lastErr != nil {
+		return authClassification{}, lastErr
+	}
+	return authClassification{}, fmt.Errorf("HTTP %d%s", lastStatus, formatUpstreamErrorHint(lastStatus, lastBody))
+}
+
+func grokSubscriptionHeaders(token, cookie string, cliIdentity bool) map[string][]string {
 	headers := map[string][]string{
-		"Authorization":         {"Bearer " + token},
-		"X-XAI-Token-Auth":      {"xai-grok-cli"},
-		"X-Grok-Client-Version": {"0.2.87"},
-		"User-Agent":            {"grok-cli/0.2.87"},
-		"Accept":                {"application/json"},
+		"Authorization": {"Bearer " + token},
+		"Accept":        {"application/json"},
+		"Origin":        {"https://grok.com"},
+		"Referer":       {"https://grok.com/"},
 	}
-	body, status, err := doUpstreamHTTP(http.MethodGet, "https://grok.com/rest/subscriptions", headers, nil)
-	if err != nil {
-		return authClassification{}, err
+	if cliIdentity {
+		headers[xaiTokenAuthHeader] = []string{xaiTokenAuthValue}
+		headers[xaiClientVersionHeader] = []string{xaiClientVersionValue}
+		headers["User-Agent"] = []string{"xai-grok-workspace/" + xaiClientVersionValue}
+	} else {
+		headers["User-Agent"] = []string{"Mozilla/5.0 (compatible; grok-panel/" + pluginVersion + ")"}
 	}
-	if status != http.StatusOK {
-		return authClassification{}, fmt.Errorf("HTTP %d", status)
+	if c := strings.TrimSpace(cookie); c != "" {
+		headers["Cookie"] = []string{c}
 	}
-	// Cap body size the same way the previous direct client did.
-	if len(body) > 2<<20 {
-		body = body[:2<<20]
+	return headers
+}
+
+func formatUpstreamErrorHint(status int, body []byte) string {
+	snippet := strings.TrimSpace(sanitizeText(string(body)))
+	if snippet == "" {
+		switch status {
+		case http.StatusForbidden:
+			return "（被官方拒绝，常见原因：token 过期/非 grok.com 会话、WAF、或代理出口 IP 被拦）"
+		case http.StatusUnauthorized:
+			return "（access_token 无效或已过期，请在 CPA 重新登录该 xAI 账号）"
+		default:
+			return ""
+		}
 	}
-	return classifyOfficialSubscriptions(body)
+	if len(snippet) > 160 {
+		snippet = snippet[:160] + "…"
+	}
+	return "：" + snippet
 }
 
 // doUpstreamHTTP prefers host.http.do so requests honor CPA proxy settings.
