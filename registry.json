@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "grok-panel",
+      "name": "Grok Panel",
+      "description": "Grok 账号管理面板 - 用量统计、Free/Super/Heavy 分类、健康检查、安全清理与受保护账号规则",
+      "author": "TizenryA",
+      "version": "1.1.21",
+      "repository": "https://github.com/TizenryA/cpa-plugin-grok-panel",
+      "homepage": "https://github.com/TizenryA/cpa-plugin-grok-panel",
+      "license": "MIT",
+      "tags": ["Management", "Grok", "Stats"]
+    }
+  ]
+}
