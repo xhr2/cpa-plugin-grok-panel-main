@@ -74,7 +74,7 @@ import (
 const (
 	abiVersion    uint32 = 1
 	pluginName           = "grok-panel"
-	pluginVersion        = "1.1.23"
+	pluginVersion        = "1.1.24"
 	xaiProvider          = "xai"
 
 	resourcePanelPath     = "/panel"
@@ -89,7 +89,7 @@ var (
 	statusCode401RE = regexp.MustCompile(`(^|[^0-9])401([^0-9]|$)`)
 	statusCode403RE = regexp.MustCompile(`(^|[^0-9])403([^0-9]|$)`)
 	bearerTokenRE   = regexp.MustCompile(`(?i)bearer\s+[A-Za-z0-9._~+/=-]+`)
-	secretFieldRE   = regexp.MustCompile(`(?i)(access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|authorization|cookie|set-cookie)(\s*[:=]\s*)["']?[^"'\s,;}` + "`" + `]+`)
+	secretFieldRE   = regexp.MustCompile(`(?i)("?(?:access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|authorization|cookie|set-cookie)"?\s*[:=]\s*)("?)([^"',}\s]+)("?)`)
 )
 
 // hostCaller is replaceable in tests. It must return the raw envelope result.
@@ -1970,7 +1970,8 @@ func sanitizeText(text string) string {
 		return ""
 	}
 	text = bearerTokenRE.ReplaceAllString(text, "Bearer [redacted]")
-	text = secretFieldRE.ReplaceAllString(text, "$1$2[redacted]")
+	// Keep key/separator and surrounding quotes, redact only the secret value.
+	text = secretFieldRE.ReplaceAllString(text, "$1$2[redacted]$4")
 	if len(text) > 240 {
 		text = text[:240] + "..."
 	}

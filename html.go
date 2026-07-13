@@ -8,7 +8,7 @@ const htmlPage = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<title>Grok 面板 v1.1.23</title>
+<title>Grok 面板 v1.1.24</title>
 <style>
 :root{
 --bg:#14161c;--card:#1c1f28;--card2:#252a36;--ink:#eef1f7;--muted:#9aa3b5;--line:#343b4a;--soft:#2a303c;--soft2:#353c4c;
@@ -367,7 +367,7 @@ input:focus,select:focus,button:focus{outline-color:var(--focus)}
 </div>
 <script>
 /*
-Frontend v1.1.23 same-origin endpoint contract for a matching backend.
+Frontend v1.1.24 same-origin endpoint contract for a matching backend.
 Delete/check reuse CPA management auth. Key resolution order:
 1) panel-local saved management key
 2) parent/local cli-proxy-auth (remember password)

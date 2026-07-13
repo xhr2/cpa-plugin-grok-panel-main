@@ -214,7 +214,11 @@ func TestFormatUpstreamErrorHintSanitizes(t *testing.T) {
 	if strings.Contains(hint, "secret-value") {
 		t.Fatalf("hint leaked secret: %s", hint)
 	}
-	if !strings.Contains(hint, "forbidden") && !strings.Contains(hint, "HTTP") {
-		// sanitize may redact; empty is ok for safety
+	if !strings.Contains(hint, "[redacted]") {
+		t.Fatalf("expected redacted token field, got %s", hint)
+	}
+	plain := sanitizeText(`access_token: secret-plain`)
+	if strings.Contains(plain, "secret-plain") {
+		t.Fatalf("plain secret leaked: %s", plain)
 	}
 }
