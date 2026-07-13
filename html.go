@@ -8,14 +8,14 @@ const htmlPage = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-<title>Grok 面板 v1.1.24</title>
+<title>Grok 面板 v1.1.26</title>
 <style>
 :root{
 --bg:#14161c;--card:#1c1f28;--card2:#252a36;--ink:#eef1f7;--muted:#9aa3b5;--line:#343b4a;--soft:#2a303c;--soft2:#353c4c;
 --green:#4fd18b;--red:#ff6b7a;--yellow:#f0c14d;--blue:#6aa8ff;--violet:#a78bfa;--orange:#ff9f6b;
 --green-bg:rgba(79,209,139,.14);--red-bg:rgba(255,107,122,.14);--yellow-bg:rgba(240,193,77,.14);--orange-bg:rgba(255,159,107,.14);--super-bg:rgba(167,139,250,.14);--heavy-bg:rgba(240,193,77,.14);
 --accent:var(--green);--accent-bg:var(--green-bg);--focus:var(--blue);--armed-fg:#0f1410;
---radius-xs:.55vw;--radius-sm:.8vw;--radius-md:1.1vw;--radius-lg:1.5vw;--radius-xl:1.9vw;--radius-pill:999vw;
+--radius-xs:6px;--radius-sm:8px;--radius-md:10px;--radius-lg:12px;--radius-xl:14px;--radius-pill:999px;
 --font-body:"Nunito","Quicksand","Segoe UI Variable Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Noto Sans SC","Source Han Sans SC",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
 --font-display:"Nunito","Quicksand","Segoe UI Variable Display","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Noto Sans SC","Source Han Sans SC",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
 --font-num:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif;
@@ -49,20 +49,23 @@ margin:0;background:
 radial-gradient(circle at 12% -8%,rgba(106,168,255,.12),transparent 34vw),
 radial-gradient(circle at 92% 0%,rgba(167,139,250,.1),transparent 30vw),
 var(--bg);
-color:var(--ink);font-family:var(--font-body);font-size:.95vw;line-height:1.55;
-font-weight:500;letter-spacing:.01vw;padding:2vw;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility
+color:var(--ink);font-family:var(--font-body);
+/* Dense panel scale: clamp prevents giant UI on wide monitors / management iframe */
+font-size:clamp(12px,.72vw,14px);line-height:1.45;
+font-weight:500;letter-spacing:.01em;padding:clamp(10px,.9vw,16px);
+-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility
 }
 button,input,select{font-family:inherit;color:var(--ink)}
 button{
-background:var(--card2);border:.1vw solid var(--line);padding:.72vh 1.05vw;min-height:3.9vh;cursor:pointer;
-font-size:.8vw;font-weight:700;text-transform:none;letter-spacing:.01vw;border-radius:var(--radius-pill);
+background:var(--card2);border:.1vw solid var(--line);padding:6px 12px;min-height:32px;cursor:pointer;
+font-size:clamp(12px,.72vw,13.5px);font-weight:700;text-transform:none;letter-spacing:.01vw;border-radius:var(--radius-pill);
 box-shadow:var(--shadow-soft)
 }
 button:hover:not(:disabled){background:var(--soft2);border-color:var(--muted);color:var(--ink)}
 button.armed{background:var(--red);border-color:var(--red);color:#fff}
 button:disabled{cursor:not-allowed;opacity:.42;background:var(--soft);box-shadow:none}
 input,select{
-background:var(--card2);border:.1vw solid var(--line);padding:.68vh .85vw;min-height:3.9vh;font-size:.8vw;
+background:var(--card2);border:.1vw solid var(--line);padding:6px 10px;min-height:32px;font-size:clamp(12px,.72vw,13.5px);
 border-radius:var(--radius-md);color:var(--ink);font-weight:600
 }
 input:focus,select:focus,button:focus{outline:.16vw solid color-mix(in srgb,var(--focus) 55%,transparent);outline-offset:.12vw}
@@ -75,57 +78,57 @@ input[type=checkbox]:checked::after{
 content:"";position:absolute;left:50%;top:45%;width:.28vw;height:.52vw;border:solid #fff;border-width:0 .14vw .14vw 0;
 transform:translate(-50%,-55%) rotate(45deg)
 }
-.shell{width:96vw;margin:0 auto}
-.topline{display:flex;justify-content:space-between;align-items:center;gap:1vw;margin-bottom:1.3vh}
-.brand{display:flex;align-items:center;gap:.75vw;min-height:4vh}
+.shell{width:min(96vw,1280px);margin:0 auto}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.brand{display:flex;align-items:center;gap:.75vw;min-height:34px}
 h1{
-font-family:var(--font-display);font-size:1.85vw;line-height:1.05;margin:0;font-weight:800;
+font-family:var(--font-display);font-size:clamp(18px,1.2vw,22px);line-height:1.05;margin:0;font-weight:800;
 letter-spacing:-.02vw;text-transform:none
 }
 h2{
-font-family:var(--font-display);font-size:1.05vw;margin:0 0 1vh 0;font-weight:800;letter-spacing:.01vw;
+font-family:var(--font-display);font-size:clamp(14px,.9vw,16px);margin:0 0 1vh 0;font-weight:800;letter-spacing:.01vw;
 border-bottom:.1vw solid var(--line);padding-bottom:.75vh;text-transform:none
 }
 .status-dot{width:.95vw;height:.95vw;background:var(--accent);display:inline-block;border:.08vw solid color-mix(in srgb,var(--accent) 70%,#fff);border-radius:50%;box-shadow:0 0 .45vw color-mix(in srgb,var(--accent) 45%,transparent)}
 .status-dot.err{background:var(--red);border-color:var(--red);box-shadow:0 0 .45vw rgba(255,107,122,.4)}
-.muted{color:var(--muted);font-size:.76vw;font-weight:600}
+.muted{color:var(--muted);font-size:clamp(11.5px,.68vw,13px);font-weight:600}
 .top-actions{display:flex;gap:.65vw;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .feedback{
-border:.1vw solid var(--line);background:var(--card);padding:.85vh 1.05vw;min-height:4vh;margin-bottom:1.1vh;
-color:var(--muted);font-size:.8vw;border-radius:var(--radius-lg);font-weight:600
+border:.1vw solid var(--line);background:var(--card);padding:8px 12px;min-height:34px;margin-bottom:1.1vh;
+color:var(--muted);font-size:clamp(12px,.72vw,13.5px);border-radius:var(--radius-lg);font-weight:600
 }
 .feedback.ok{border-color:color-mix(in srgb,var(--green) 55%,var(--line));color:var(--green);background:var(--green-bg)}
 .feedback.warn{border-color:color-mix(in srgb,var(--yellow) 55%,var(--line));color:var(--yellow);background:var(--yellow-bg)}
 .feedback.error{border-color:color-mix(in srgb,var(--red) 55%,var(--line));color:var(--red);background:var(--red-bg)}
-.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1vw;margin-bottom:1.5vh}
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .stat-card,.panel{
-background:var(--card);border:.1vw solid var(--line);padding:1.2vh 1.1vw;border-radius:var(--radius-xl);
+background:var(--card);border:.1vw solid var(--line);padding:10px 12px;border-radius:var(--radius-xl);
 box-shadow:var(--shadow-soft)
 }
-.stat-card{min-height:13vh;display:flex;flex-direction:column;justify-content:space-between}
+.stat-card{min-height:96px;display:flex;flex-direction:column;justify-content:space-between}
 .stat-card:hover,.panel:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
-.stat-label{font-size:.7vw;color:var(--muted);text-transform:none;letter-spacing:.02vw;font-weight:700}
-.stat-value{font-family:var(--font-num);font-size:1.65vw;line-height:1.08;font-weight:800;margin-top:.65vh;word-break:break-word;letter-spacing:-.02vw}
-.stat-sub{font-size:.7vw;color:var(--muted);margin-top:.55vh;font-weight:600}
+.stat-label{font-size:clamp(11px,.62vw,12px);color:var(--muted);text-transform:none;letter-spacing:.02vw;font-weight:700}
+.stat-value{font-family:var(--font-num);font-size:clamp(18px,1.2vw,24px);line-height:1.08;font-weight:800;margin-top:.65vh;word-break:break-word;letter-spacing:-.02vw}
+.stat-sub{font-size:clamp(11px,.62vw,12px);color:var(--muted);margin-top:.55vh;font-weight:600}
 .bar-container{width:100%;max-width:18vw;height:1.15vh;background:var(--soft2);margin-top:.75vh;border:.06vw solid var(--line);overflow:hidden;border-radius:var(--radius-pill)}
 .bar-container.small{max-width:11vw;height:1vh;margin-top:.4vh}
 .bar-fill{height:100%;background:var(--accent);border-radius:var(--radius-pill)}
 .bar-fill.warn{background:var(--yellow)}
 .bar-fill.danger{background:var(--red)}
-.panel{margin-bottom:1.5vh}
+.panel{margin-bottom:12px}
 .form-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.85vw;align-items:end}
 .field{display:flex;flex-direction:column;gap:.48vh}
-.field label,.checkline{font-size:.74vw;color:var(--muted);font-weight:650}
+.field label,.checkline{font-size:clamp(11.5px,.66vw,12.5px);color:var(--muted);font-weight:650}
 .number-input{width:100%}
 .checkline{
-display:flex;align-items:center;gap:.5vw;min-height:3.9vh;border:.1vw solid var(--soft2);padding:.65vh .75vw;
+display:flex;align-items:center;gap:.5vw;min-height:32px;border:.1vw solid var(--soft2);padding:.65vh .75vw;
 background:var(--bg);border-radius:var(--radius-md)
 }
 .checkline:has(input:checked){border-color:var(--accent);background:var(--accent-bg)}
-.help-text{font-size:.7vw;color:var(--muted);margin-top:.9vh;font-weight:600}
+.help-text{font-size:clamp(11px,.62vw,12px);color:var(--muted);margin-top:.9vh;font-weight:600}
 .field-wide{grid-column:1 / -1}
 .auth-grid{margin-top:1vh}
-.auth-badge{margin-top:1vh;padding:.85vh .9vw;border:.1vw solid var(--soft2);font-size:.74vw;background:var(--bg);border-radius:var(--radius-md);font-weight:650}
+.auth-badge{margin-top:1vh;padding:.85vh .9vw;border:.1vw solid var(--soft2);font-size:clamp(11.5px,.66vw,12.5px);background:var(--bg);border-radius:var(--radius-md);font-weight:650}
 .auth-badge.ok{border-color:var(--green);color:var(--green)}
 .auth-badge.warn{border-color:var(--orange);color:var(--orange)}
 .chart-row{
@@ -137,7 +140,7 @@ background:var(--bg);border:.1vw solid var(--line);border-radius:var(--radius-lg
 .chart-bar:hover{opacity:1}
 .chart-bar:hover::after{
 content:attr(data-tip);position:absolute;bottom:14.5vh;left:0;background:var(--card2);color:var(--ink);
-padding:.5vh .6vw;font-size:.66vw;white-space:normal;z-index:8;width:14vw;border:.08vw solid var(--line);
+padding:.5vh .6vw;font-size:clamp(10.5px,.58vw,11.5px);white-space:normal;z-index:8;width:14vw;border:.08vw solid var(--line);
 border-radius:var(--radius-sm);box-shadow:var(--shadow-soft);font-weight:650
 }
 .chart-empty{color:var(--muted);padding:5vh 1vw;font-size:.82vw;font-weight:650}
@@ -149,16 +152,16 @@ border:.1vw solid var(--line);padding:.85vh .9vw;border-radius:var(--radius-lg)
 }
 .batchbar .spacer{flex:1}
 .pagebar{margin:.95vh 0}
-.pagebar .page-info{font-size:.74vw;color:var(--muted);font-weight:650}
+.pagebar .page-info{font-size:clamp(11.5px,.66vw,12.5px);color:var(--muted);font-weight:650}
 .pagebar .page-info b{color:var(--ink)}
 .pagebar .field{margin:0}
 .pagebar select{min-width:8vw}
-.table-wrap{max-height:58vh;overflow:auto;border:.1vw solid var(--line);background:var(--card);border-radius:var(--radius-xl);width:100%}
+.table-wrap{max-height:min(62vh,640px);overflow:auto;border:.1vw solid var(--line);background:var(--card);border-radius:var(--radius-xl);width:100%}
 table{border-collapse:separate;border-spacing:0;width:100%;min-width:0;table-layout:fixed;background:transparent}
-th,td{text-align:left;padding:.7vh .55vw;border-bottom:.08vw solid var(--line);font-size:.74vw;vertical-align:middle}
+th,td{text-align:left;padding:.7vh .55vw;border-bottom:.08vw solid var(--line);font-size:clamp(11.5px,.66vw,12.5px);vertical-align:middle}
 th{
 position:sticky;top:0;z-index:4;background:var(--card2);color:var(--ink);font-family:var(--font-display);
-font-weight:800;text-transform:none;font-size:.68vw;letter-spacing:.01vw;border-bottom:.12vw solid var(--line);white-space:nowrap
+font-weight:800;text-transform:none;font-size:clamp(10.5px,.6vw,12px);letter-spacing:.01vw;border-bottom:.12vw solid var(--line);white-space:nowrap
 }
 tr:hover{background:color-mix(in srgb,var(--card2) 78%,transparent)}
 .col-check{width:3.2vw;text-align:center}
@@ -171,13 +174,13 @@ tr:hover{background:color-mix(in srgb,var(--card2) 78%,transparent)}
 .email-main{font-weight:700;line-height:1.25}
 .email-meta{display:flex;flex-wrap:wrap;gap:.35vw;margin-top:.35vh;align-items:center}
 .num-cell{font-variant-numeric:tabular-nums;white-space:nowrap}
-.usage-cell .metric-compact{display:flex;justify-content:space-between;gap:.4vw;font-size:.66vw;color:var(--muted);font-weight:650;margin-bottom:.3vh}
+.usage-cell .metric-compact{display:flex;justify-content:space-between;gap:.4vw;font-size:clamp(10.5px,.58vw,11.5px);color:var(--muted);font-weight:650;margin-bottom:.3vh}
 .usage-cell .metric-compact b{color:var(--ink);font-family:var(--font-num)}
 .usage-cell .bar-container.small{width:100%;max-width:100%;height:.85vh;margin-top:.2vh}
 .actions-cell{display:flex;gap:.35vw;flex-wrap:wrap;align-items:center}
-.actions-cell button{padding:.45vh .55vw;min-height:3.1vh;font-size:.68vw;border-radius:var(--radius-pill)}
+.actions-cell button{padding:.45vh .55vw;min-height:3.1vh;font-size:clamp(10.5px,.6vw,12px);border-radius:var(--radius-pill)}
 .tag{
-display:inline-block;padding:.35vh .65vw;border:.08vw solid;font-size:.66vw;font-weight:750;letter-spacing:.01vw;
+display:inline-block;padding:.35vh .65vw;border:.08vw solid;font-size:clamp(10.5px,.58vw,11.5px);font-weight:750;letter-spacing:.01vw;
 text-transform:none;min-width:4.6vw;text-align:center;border-radius:var(--radius-pill)
 }
 .tag.active,.tag.healthy,.tag.free{background:var(--green-bg);border-color:color-mix(in srgb,var(--green) 55%,var(--line));color:var(--green)}
@@ -189,9 +192,9 @@ text-transform:none;min-width:4.6vw;text-align:center;border-radius:var(--radius
 .tag.other{background:var(--soft);border-color:var(--muted);color:var(--muted)}
 .tag.error,.tag.unavailable{background:var(--red-bg);border-color:color-mix(in srgb,var(--red) 55%,var(--line));color:var(--red)}
 .health-dot.unavailable{background:var(--red)}
-.cell-sub{font-size:.64vw;color:var(--muted);margin-top:.35vh;word-break:break-word;font-weight:600}
+.cell-sub{font-size:clamp(10px,.56vw,11px);color:var(--muted);margin-top:.35vh;word-break:break-word;font-weight:600}
 .red-text{color:var(--red);font-weight:750}
-.summary-row{display:flex;gap:1.2vw;flex-wrap:wrap;font-size:.74vw;color:var(--muted);margin-top:.9vh;font-weight:650}
+.summary-row{display:flex;gap:1.2vw;flex-wrap:wrap;font-size:clamp(11.5px,.66vw,12.5px);color:var(--muted);margin-top:.9vh;font-weight:650}
 .summary-row b{color:var(--ink)}
 .row-invalid{background:var(--red-bg)!important}
 .row-disabled{background:var(--soft)!important;opacity:.62}
@@ -214,9 +217,9 @@ padding:.55vh .55vw;position:sticky;top:.4vh;z-index:20;border-radius:var(--radi
 .panel-view.active{display:block}
 .panel-view>.panel:last-child{margin-bottom:0}
 .metric-line{display:flex;justify-content:space-between;gap:.5vw;align-items:baseline}
-.metric-line span{color:var(--muted);font-size:.68vw;font-weight:650}
-.metric-line b{color:var(--ink);font-size:.8vw;font-family:var(--font-num)}
-.meter-head{display:flex;justify-content:space-between;gap:.5vw;font-size:.66vw;color:var(--muted);font-weight:650}
+.metric-line span{color:var(--muted);font-size:clamp(10.5px,.6vw,12px);font-weight:650}
+.metric-line b{color:var(--ink);font-size:clamp(12px,.72vw,13.5px);font-family:var(--font-num)}
+.meter-head{display:flex;justify-content:space-between;gap:.5vw;font-size:clamp(10.5px,.58vw,11.5px);color:var(--muted);font-weight:650}
 @media (prefers-color-scheme:dark){
 body{background:
 radial-gradient(circle at 10% -10%,rgba(106,168,255,.16),transparent 32vw),
@@ -315,7 +318,7 @@ input:focus,select:focus,button:focus{outline-color:var(--focus)}
 <label class="checkline"><input type="checkbox" id="autoDelete"> 自动删除无效 默认关</label>
 <label class="checkline"><input type="checkbox" id="protectSuper" checked> 保护 super 默认开</label>
 <label class="checkline"><input type="checkbox" id="protectHeavy" checked> 保护 heavy 默认开</label>
-<label class="checkline"><input type="checkbox" id="protectUnknown" checked> 保护未知 默认开</label>
+<label class="checkline"><input type="checkbox" id="protectUnknown"> 保护未知 默认关（未知按 Free）</label>
 </div>
 <div class="help-text">删除和清理需要再次点击同一按钮确认。插件在管理中心 iframe 中通常读不到“记住密码”，请在下方填写管理密钥后保存。</div>
 <div class="form-grid auth-grid">
@@ -367,7 +370,7 @@ input:focus,select:focus,button:focus{outline-color:var(--focus)}
 </div>
 <script>
 /*
-Frontend v1.1.24 same-origin endpoint contract for a matching backend.
+Frontend v1.1.26 same-origin endpoint contract for a matching backend.
 Delete/check reuse CPA management auth. Key resolution order:
 1) panel-local saved management key
 2) parent/local cli-proxy-auth (remember password)
@@ -391,7 +394,7 @@ var refreshHandle=null;
 var currentPage=1;
 var settings=loadSettings();
 function byId(id){return document.getElementById(id)}
-function defaults(){return{tokenLimit:2000000,tokensPerReq:5000,threshold:3,autoCheck:false,autoDelete:false,protectSuper:true,protectHeavy:true,protectUnknown:true,rememberMgmtKey:true,pageSize:50}}
+function defaults(){return{tokenLimit:2000000,tokensPerReq:5000,threshold:3,autoCheck:false,autoDelete:false,protectSuper:true,protectHeavy:true,protectUnknown:false,rememberMgmtKey:true,pageSize:50}}
 function loadSettings(){var base=defaults();try{var raw=localStorage.getItem(settingsKey);if(raw){var parsed=JSON.parse(raw);Object.keys(base).forEach(function(k){if(parsed[k]!==undefined)base[k]=parsed[k]})}}catch(e){}return base}
 function saveSettings(){try{localStorage.setItem(settingsKey,JSON.stringify(settings))}catch(e){}}
 function initSettings(){byId('tokenLimit').value=settings.tokenLimit;byId('tokensPerReq').value=settings.tokensPerReq;byId('failThreshold').value=settings.threshold;byId('autoCheck').checked=!!settings.autoCheck;byId('autoDelete').checked=!!settings.autoDelete;byId('protectSuper').checked=!!settings.protectSuper;byId('protectHeavy').checked=!!settings.protectHeavy;byId('protectUnknown').checked=!!settings.protectUnknown;byId('rememberMgmtKey').checked=!!settings.rememberMgmtKey;if(byId('pageSize'))byId('pageSize').value=String([20,50,100,200].indexOf(Number(settings.pageSize))>=0?Number(settings.pageSize):50);var saved=loadManualManagementKey();if(saved)byId('mgmtKey').value=saved;updateAuthBadge()}
@@ -435,7 +438,7 @@ function failThreshold(){return Math.max(1,parseInt(settings.threshold,10)||3)}
 function usagePct(x){var tl=tokenLimit();var et=(Number(x&&x.success)||0)*tokensPerReq();return tl>0?Math.max(0,Math.min(999,et/tl*100)):0}
 function isMobileView(){return window.matchMedia&&window.matchMedia('(orientation:portrait),(hover:none) and (pointer:coarse)').matches}
 function meterWidth(pct,kind){var span=kind==='row'?(isMobileView()?24:11):(isMobileView()?80:18);var clamped=Math.max(0,Math.min(100,Number(pct)||0));return(clamped*span/100).toFixed(2)+'vw'}
-function classifyType(x){var key=makeRowKey(x,0);var raw=x.tier||typeOverrides[key]||x.account_type||x.accountType||x.account_kind||x.accountKind||x.plan||x.type||x.label||'';raw=String(raw||'').trim();var low=raw.toLowerCase();if(!raw||low==='unknown'||low==='unk'||low==='oauth')return{key:'unknown',label:'Unknown'};if(low.indexOf('heavy')>=0||low.indexOf('bulk')>=0||low.indexOf('team')>=0)return{key:'heavy',label:'Heavy'};if(low.indexOf('super')>=0||low.indexOf('premium')>=0||low.indexOf('paid')>=0||low.indexOf('pro')>=0||low.indexOf('max')>=0)return{key:'super',label:'Super'};if(low.indexOf('free')>=0||low.indexOf('basic')>=0||low.indexOf('standard')>=0||low.indexOf('normal')>=0)return{key:'free',label:'Free'};return{key:'unknown',label:'Unknown'}}
+function classifyType(x){var key=makeRowKey(x,0);var raw=x.tier||typeOverrides[key]||x.account_type||x.accountType||x.account_kind||x.accountKind||x.plan||x.type||x.label||'';raw=String(raw||'').trim();var low=raw.toLowerCase();if(!raw||low==='unknown'||low==='unk'||low==='oauth'||low==='none'||low==='')return{key:'free',label:'Free'};if(low.indexOf('heavy')>=0||low.indexOf('bulk')>=0||low.indexOf('team')>=0)return{key:'heavy',label:'Heavy'};if(low.indexOf('super')>=0||low.indexOf('premium')>=0||low.indexOf('paid')>=0||low.indexOf('pro')>=0||low.indexOf('max')>=0)return{key:'super',label:'Super'};if(low.indexOf('free')>=0||low.indexOf('basic')>=0||low.indexOf('standard')>=0||low.indexOf('normal')>=0)return{key:'free',label:'Free'};return{key:'free',label:'Free'}}
 function isHeavyAccount(x){return classifyType(x).key==='heavy'}
 function statusKey(x){var s=getStatus(x).toLowerCase();if(x&&x.disabled)return'disabled';if(!s)return'unknown';if(s.indexOf('disable')>=0||s.indexOf('off')>=0)return'disabled';if(s.indexOf('active')>=0||s.indexOf('ok')>=0||s.indexOf('ready')>=0||s==='available'||s.indexOf('healthy')>=0)return'active';if(s.indexOf('error')>=0||s.indexOf('fail')>=0||s.indexOf('invalid')>=0)return'error';if(s.indexOf('unavail')>=0||s.indexOf('cooling')>=0||s.indexOf('cooldown')>=0||s.indexOf('retry')>=0||s.indexOf('rate')>=0||s.indexOf('quota')>=0)return'unavailable';return'other'}
 function mapHealth(raw){var low=String(raw||'').toLowerCase();if(!low)return null;if(low.indexOf('disabled')>=0||low.indexOf('off')>=0)return{key:'disabled',label:'禁用',detail:raw};if(low.indexOf('unavail')>=0||low.indexOf('cooling')>=0||low.indexOf('cooldown')>=0||low.indexOf('retry')>=0||low.indexOf('rate')>=0||low.indexOf('quota')>=0||low==='error')return{key:'unavailable',label:'异常',detail:raw};if(low.indexOf('invalid')>=0||low.indexOf('expired')>=0||low.indexOf('revoked')>=0||low.indexOf('dead')>=0)return{key:'invalid',label:'无效',detail:raw};if(low.indexOf('warn')>=0||low.indexOf('limited')>=0||low.indexOf('fail')>=0)return{key:'warn',label:'警告',detail:raw};if(low.indexOf('healthy')>=0||low.indexOf('active')>=0||low.indexOf('ok')>=0||low.indexOf('valid')>=0)return{key:'healthy',label:'健康',detail:raw};if(low.indexOf('unknown')>=0)return{key:'unknown',label:'未知',detail:raw};return null}

@@ -19,7 +19,7 @@ func TestClassifyAuthTier(t *testing.T) {
 		{"free", authFile{AccountType: "free"}, `{}`, tierFree},
 		{"super", authFile{}, `{"subscription":{"plan":"SuperGrok"}}`, tierSuper},
 		{"heavy", authFile{}, `{"account_tier":"heavy"}`, tierHeavy},
-		{"unknown", authFile{}, `{}`, tierUnknown},
+		{"default_free", authFile{}, `{}`, tierFree},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -117,10 +117,16 @@ func TestTransientFailureNeverBecomesInvalid(t *testing.T) {
 
 func TestSettingsAlwaysProtectValuableTiers(t *testing.T) {
 	s := sanitizeSettings(pluginSettings{InvalidThreshold: 3})
-	for _, tier := range []string{tierSuper, tierHeavy, tierUnknown} {
+	for _, tier := range []string{tierSuper, tierHeavy} {
 		if !isProtectedTier(tier, s) {
 			t.Fatalf("%s must be protected", tier)
 		}
+	}
+	if isProtectedTier(tierFree, s) {
+		t.Fatal("free must not be protected by default")
+	}
+	if isProtectedTier(tierUnknown, s) {
+		t.Fatal("unknown must not be protected by default (defaults to free)")
 	}
 }
 
@@ -220,5 +226,38 @@ func TestFormatUpstreamErrorHintSanitizes(t *testing.T) {
 	plain := sanitizeText(`access_token: secret-plain`)
 	if strings.Contains(plain, "secret-plain") {
 		t.Fatalf("plain secret leaked: %s", plain)
+	}
+}
+func TestIsCloudflareChallenge(t *testing.T) {
+	html := []byte(`<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title></head></html>`)
+	if !isCloudflareChallenge(403, html) {
+		t.Fatal("expected challenge detection")
+	}
+	if isCloudflareChallenge(200, []byte(`{"subscriptions":[]}`)) {
+		t.Fatal("json body should not be challenge")
+	}
+	hint := formatUpstreamErrorHint(403, html)
+	if strings.Contains(strings.ToLower(hint), "<!doctype") {
+		t.Fatalf("hint should not dump HTML: %s", hint)
+	}
+	if !strings.Contains(strings.ToLower(hint), "cloudflare") && !strings.Contains(hint, "WAF") && !strings.Contains(hint, "代理") {
+		t.Fatalf("hint should mention CF/WAF/proxy: %s", hint)
+	}
+}
+
+func TestFetchOfficialGrokTierCloudflareChallenge(t *testing.T) {
+	old := hostCaller
+	defer func() { hostCaller = old }()
+	hostCaller = func(method string, payload any) (json.RawMessage, error) {
+		if method != "host.http.do" {
+			t.Fatalf("method=%s", method)
+		}
+		body := []byte(`<!DOCTYPE html><html><title>Just a moment...</title><body>cf-challenge</body></html>`)
+		raw, _ := json.Marshal(map[string]any{"StatusCode": 403, "Body": body})
+		return raw, nil
+	}
+	_, err := fetchOfficialGrokTier("tok")
+	if err == nil || !strings.Contains(err.Error(), "cloudflare_challenge") {
+		t.Fatalf("err=%v, want cloudflare_challenge", err)
 	}
 }

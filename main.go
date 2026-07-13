@@ -74,7 +74,7 @@ import (
 const (
 	abiVersion    uint32 = 1
 	pluginName           = "grok-panel"
-	pluginVersion        = "1.1.24"
+	pluginVersion        = "1.1.26"
 	xaiProvider          = "xai"
 
 	resourcePanelPath     = "/panel"
@@ -870,23 +870,34 @@ func fetchOfficialGrokTierWithCookie(token, cookie string) (authClassification, 
 		return authClassification{}, fmt.Errorf("empty access_token")
 	}
 
-	// Try current CPA CLI identity first, then a browser-like fallback.
-	attempts := []map[string][]string{
-		grokSubscriptionHeaders(token, cookie, true),
-		grokSubscriptionHeaders(token, cookie, false),
+	// Order: CLI identity first, then browser-like headers.
+	// Both still go through host.http.do so CPA proxy-url is honored.
+	type attempt struct {
+		name    string
+		headers map[string][]string
+	}
+	attempts := []attempt{
+		{name: "cli", headers: grokSubscriptionHeaders(token, cookie, true)},
+		{name: "browser", headers: grokSubscriptionHeaders(token, cookie, false)},
 	}
 
 	var lastStatus int
 	var lastBody []byte
 	var lastErr error
-	for _, headers := range attempts {
-		body, status, err := doUpstreamHTTP(http.MethodGet, grokSubscriptionsURL, headers, nil)
+	var sawChallenge bool
+	for _, a := range attempts {
+		body, status, err := doUpstreamHTTP(http.MethodGet, grokSubscriptionsURL, a.headers, nil)
 		if err != nil {
 			lastErr = err
 			continue
 		}
 		lastStatus = status
 		lastBody = body
+		if isCloudflareChallenge(status, body) {
+			sawChallenge = true
+			// Retry next header profile; if all fail, surface a clear CF message.
+			continue
+		}
 		if status == http.StatusOK {
 			if len(body) > 2<<20 {
 				body = body[:2<<20]
@@ -898,10 +909,42 @@ func fetchOfficialGrokTierWithCookie(token, cookie string) (authClassification, 
 			break
 		}
 	}
+	if sawChallenge && (lastStatus == http.StatusForbidden || lastStatus == http.StatusUnavailableForLegalReasons || lastStatus == 0 || isCloudflareChallenge(lastStatus, lastBody)) {
+		return authClassification{}, fmt.Errorf("cloudflare_challenge: grok.com 返回人机验证页（Just a moment），官方网页接口被 WAF 拦截。请换代理出口 IP，或跳过官方核实，改用本地 note/prefix 分类")
+	}
 	if lastErr != nil {
 		return authClassification{}, lastErr
 	}
 	return authClassification{}, fmt.Errorf("HTTP %d%s", lastStatus, formatUpstreamErrorHint(lastStatus, lastBody))
+}
+
+func isCloudflareChallenge(status int, body []byte) bool {
+	if status != http.StatusForbidden && status != http.StatusServiceUnavailable && status != 429 {
+		// CF sometimes returns 403 HTML; also check body for any status if HTML challenge markers exist.
+		if status == http.StatusOK {
+			return false
+		}
+	}
+	text := strings.ToLower(string(body))
+	if text == "" {
+		return false
+	}
+	if strings.Contains(text, "just a moment") ||
+		strings.Contains(text, "cf-browser-verification") ||
+		strings.Contains(text, "cf-challenge") ||
+		strings.Contains(text, "cdn-cgi/challenge") ||
+		strings.Contains(text, "_cf_chl") ||
+		(strings.Contains(text, "cloudflare") && strings.Contains(text, "challenge")) ||
+		strings.Contains(text, "attention required") && strings.Contains(text, "cloudflare") {
+		return true
+	}
+	// HTML challenge page without JSON
+	if (status == http.StatusForbidden || status == http.StatusServiceUnavailable) &&
+		strings.Contains(text, "<!doctype html") &&
+		(strings.Contains(text, "cloudflare") || strings.Contains(text, "just a moment")) {
+		return true
+	}
+	return false
 }
 
 func grokSubscriptionHeaders(token, cookie string, cliIdentity bool) map[string][]string {
@@ -925,7 +968,19 @@ func grokSubscriptionHeaders(token, cookie string, cliIdentity bool) map[string]
 }
 
 func formatUpstreamErrorHint(status int, body []byte) string {
+	if isCloudflareChallenge(status, body) {
+		return "（Cloudflare 人机验证：代理出口 IP 被 grok.com 拦截，请更换代理节点）"
+	}
 	snippet := strings.TrimSpace(sanitizeText(string(body)))
+	// Don't dump HTML pages into the UI.
+	if strings.HasPrefix(strings.ToLower(snippet), "<!doctype") || strings.HasPrefix(strings.ToLower(snippet), "<html") {
+		switch status {
+		case http.StatusForbidden:
+			return "（返回 HTML 拒绝页，多为 WAF/地区限制）"
+		default:
+			return "（返回 HTML 页面而非 JSON）"
+		}
+	}
 	if snippet == "" {
 		switch status {
 		case http.StatusForbidden:
@@ -1075,7 +1130,8 @@ func classifyOfficialSubscriptions(raw []byte) (authClassification, error) {
 		}
 	}
 	if best == tierUnknown {
-		return authClassification{Tier: tierUnknown, Source: "official_subscription", Detail: "活动订阅套餐枚举暂不认识"}, nil
+		// Unrecognized paid tier labels still should not leave accounts as Unknown.
+		return authClassification{Tier: tierFree, Source: "official_subscription", Detail: "官方活动订阅套餐暂未识别，按 Free 显示"}, nil
 	}
 	return authClassification{Tier: best, Source: "official_subscription", Detail: "官方活动订阅：" + detail, SourceKeys: []string{"official.subscriptions.tier"}}, nil
 }
@@ -1405,7 +1461,7 @@ func buildSettingsResponse(settings pluginSettings) settingsResponse {
 		SafetyInvariants: []string{
 			"auto_delete defaults to false and only creates delete intent because CPA exposes no delete callback",
 			"invalid_threshold requires explicit 401/403 observations",
-			"super, heavy, and unknown tiers are always protected",
+			"super and heavy tiers are always protected; unknown defaults to free",
 			"credentials and raw auth JSON are never returned",
 		},
 	}
@@ -1415,7 +1471,7 @@ func defaultPluginSettings() pluginSettings {
 	return pluginSettings{
 		AutoDelete:       false,
 		InvalidThreshold: defaultInvalidThreshold,
-		ProtectedTiers:   []string{tierHeavy, tierSuper, tierUnknown},
+		ProtectedTiers:   []string{tierHeavy, tierSuper},
 	}
 }
 
@@ -1426,7 +1482,7 @@ func sanitizeSettings(settings pluginSettings) pluginSettings {
 	if settings.InvalidThreshold > maxInvalidThreshold {
 		settings.InvalidThreshold = maxInvalidThreshold
 	}
-	settings.ProtectedTiers = normalizeTierList(append(settings.ProtectedTiers, tierHeavy, tierSuper, tierUnknown))
+	settings.ProtectedTiers = normalizeTierList(append(settings.ProtectedTiers, tierHeavy, tierSuper))
 	return settings
 }
 
@@ -1457,9 +1513,12 @@ func normalizeTierList(values []string) []string {
 func isProtectedTier(tier string, settings pluginSettings) bool {
 	tier = normalizeTier(tier)
 	if tier == "" {
-		tier = tierUnknown
+		// Empty/unknown now defaults to free classification at resolve time;
+		// do not treat it as a protected valuable tier.
+		tier = tierFree
 	}
-	if tier == tierHeavy || tier == tierSuper || tier == tierUnknown {
+	// Super / Heavy always protected.
+	if tier == tierHeavy || tier == tierSuper {
 		return true
 	}
 	for _, protected := range settings.ProtectedTiers {
@@ -1512,9 +1571,13 @@ func classifyAuthTier(file authFile, rawJSON json.RawMessage) authClassification
 	sort.Strings(sources)
 	source := "local_metadata"
 	detail := "本地 auth 元数据"
+	if tier == tierFree && len(sources) == 0 {
+		source = "default_free"
+		detail = "无明确套餐信号，按 Free 处理"
+	}
 	if tier == tierUnknown {
 		source = "unverified"
-		detail = "没有明确套餐信息，请手动核实"
+		detail = "套餐信息无法可靠识别"
 	}
 	return authClassification{Tier: tier, SourceKeys: sources, Source: source, Detail: detail}
 }
@@ -1581,7 +1644,9 @@ func addTierSignal(signals *[]tierSignal, path, text string) {
 }
 
 func resolveTier(signals []tierSignal) string {
-	best := tierUnknown
+	// Default to Free when no Super/Heavy signal is present.
+	// Unknown is reserved for explicit unresolved cases, not "no metadata".
+	best := tierFree
 	for _, signal := range signals {
 		switch signal.Tier {
 		case tierHeavy:
@@ -1589,9 +1654,7 @@ func resolveTier(signals []tierSignal) string {
 		case tierSuper:
 			best = tierSuper
 		case tierFree:
-			if best == tierUnknown {
-				best = tierFree
-			}
+			// keep free unless upgraded by super/heavy above
 		}
 	}
 	return best
@@ -1623,12 +1686,13 @@ func normalizeTier(tier string) string {
 	case tierHeavy, "grokheavy", "supergrokheavy":
 		return tierHeavy
 	case tierUnknown, "":
-		return tierUnknown
+		// Product rule: unknown/empty accounts are treated as Free.
+		return tierFree
 	default:
 		if tierFromText(tier) != "" {
 			return tierFromText(tier)
 		}
-		return tierUnknown
+		return tierFree
 	}
 }
 
