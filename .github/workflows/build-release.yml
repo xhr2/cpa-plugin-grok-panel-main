@@ -39,44 +39,9 @@ jobs:
         run: go vet ./...
 
   build:
-    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    name: Build linux/amd64
     needs: test
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            runner: ubuntu-latest
-            libname: grok-panel.so
-          - goos: linux
-            goarch: arm64
-            runner: ubuntu-latest
-            libname: grok-panel.so
-            apt_packages: gcc-aarch64-linux-gnu
-            cc: aarch64-linux-gnu-gcc
-          - goos: darwin
-            goarch: amd64
-            runner: macos-13
-            libname: grok-panel.dylib
-          - goos: darwin
-            goarch: arm64
-            runner: macos-14
-            libname: grok-panel.dylib
-          - goos: windows
-            goarch: amd64
-            runner: windows-latest
-            libname: grok-panel.dll
-            msystem: MINGW64
-            msys_install: mingw-w64-x86_64-gcc
-          - goos: windows
-            goarch: arm64
-            runner: windows-11-arm
-            libname: grok-panel.dll
-            msystem: CLANGARM64
-            msys_install: mingw-w64-clang-aarch64-clang
-
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -84,20 +49,10 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install Linux cross compiler
-        if: runner.os == 'Linux' && matrix.apt_packages != ''
+      - name: Install gcc
         run: |
           sudo apt-get update
-          sudo apt-get install -y ${{ matrix.apt_packages }}
-
-      - name: Setup MSYS2 toolchain (Windows)
-        if: matrix.goos == 'windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.msystem }}
-          update: true
-          install: ${{ matrix.msys_install }}
-          path-type: inherit
+          sudo apt-get install -y gcc
 
       - name: Resolve version
         id: meta
@@ -126,7 +81,7 @@ jobs:
               exit 1
             fi
           fi
-          ASSET="grok-panel_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.zip"
+          ASSET="grok-panel_${VERSION}_linux_amd64.zip"
           {
             echo "version=${VERSION}"
             echo "tag=${TAG}"
@@ -135,60 +90,35 @@ jobs:
           echo "Resolved version=${VERSION} asset=${ASSET}"
 
       - name: Build plugin library
-        shell: bash
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          GOOS: linux
+          GOARCH: amd64
           CGO_ENABLED: "1"
         run: |
           set -euo pipefail
           mkdir -p dist
-          OUT="dist/${{ matrix.libname }}"
-
-          if [[ "${{ matrix.goos }}" == "linux" && "${{ matrix.goarch }}" == "arm64" ]]; then
-            export CC=aarch64-linux-gnu-gcc
-            export CXX=aarch64-linux-gnu-g++
-          fi
-
-          if [[ "${{ matrix.goos }}" == "windows" && "${{ matrix.goarch }}" == "amd64" ]]; then
-            export PATH="/mingw64/bin:$PATH"
-            export CC=gcc
-            export CXX=g++
-          fi
-
-          if [[ "${{ matrix.goos }}" == "windows" && "${{ matrix.goarch }}" == "arm64" ]]; then
-            export PATH="/clangarm64/bin:$PATH"
-            export CC=clang
-            export CXX=clang++
-          fi
-
-          echo "GOOS=${GOOS} GOARCH=${GOARCH} CC=${CC:-default}"
+          OUT="dist/grok-panel.so"
+          echo "GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=${CGO_ENABLED}"
+          gcc --version
           go build -buildmode=c-shared -trimpath -ldflags="-s -w" -o "${OUT}" .
           ls -lah dist/
           test -f "${OUT}"
 
       - name: Package zip
-        shell: bash
         run: |
           set -euo pipefail
           cd dist
-          LIB="${{ matrix.libname }}"
-          test -f "${LIB}"
+          test -f grok-panel.so
           rm -f *.h
           ASSET="${{ steps.meta.outputs.asset }}"
-          if command -v zip >/dev/null 2>&1; then
-            zip -9 "${ASSET}" "${LIB}"
-          else
-            # Windows runners usually lack zip(1)
-            powershell.exe -NoProfile -Command "Compress-Archive -Path '${LIB}' -DestinationPath '${ASSET}' -Force"
-          fi
+          zip -9 "${ASSET}" grok-panel.so
           ls -lah
           test -f "${ASSET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: build-linux-amd64
           path: dist/${{ steps.meta.outputs.asset }}
           if-no-files-found: error
           retention-days: 14
@@ -226,28 +156,18 @@ jobs:
             echo "tag=${TAG}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Download all build artifacts
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          path: release-assets
-          pattern: build-*
-          merge-multiple: true
+          name: build-linux-amd64
+          path: out
 
-      - name: Prepare assets and checksums
-        shell: bash
+      - name: Prepare checksums
         run: |
           set -euo pipefail
-          mkdir -p out
-          find release-assets -type f -name 'grok-panel_*.zip' -exec cp -f {} out/ \;
           cd out
           ls -lah
-          count=$(ls -1 grok-panel_*.zip 2>/dev/null | wc -l | tr -d ' ')
-          echo "zip count=${count}"
-          if [[ "${count}" -lt 1 ]]; then
-            echo "no zip assets found" >&2
-            find ../release-assets -print >&2 || true
-            exit 1
-          fi
+          test -f grok-panel_*.zip || { echo "missing zip"; ls -la; exit 1; }
           sha256sum grok-panel_*.zip | tee checksums.txt
 
       - name: Create or update GitHub Release
@@ -262,11 +182,3 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Post-release reminder
-        run: |
-          cat <<EOF
-          Release ${{ steps.meta.outputs.tag }} published.
-
-          CPA 插件商店还需要把 registry.json 的 version 改成 ${{ steps.meta.outputs.version }} 并推送到 store-sources 指向的分支。
-          EOF
