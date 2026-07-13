@@ -1,0 +1,272 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub Release (needs version)"
+        type: boolean
+        default: false
+      version:
+        description: "Version without v prefix, e.g. 1.1.21"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.24.x"
+  PLUGIN_ID: grok-panel
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            libname: grok-panel.so
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            libname: grok-panel.so
+            apt_packages: gcc-aarch64-linux-gnu
+            cc: aarch64-linux-gnu-gcc
+          - goos: darwin
+            goarch: amd64
+            runner: macos-13
+            libname: grok-panel.dylib
+          - goos: darwin
+            goarch: arm64
+            runner: macos-14
+            libname: grok-panel.dylib
+          - goos: windows
+            goarch: amd64
+            runner: windows-latest
+            libname: grok-panel.dll
+            msystem: MINGW64
+            msys_install: mingw-w64-x86_64-gcc
+          - goos: windows
+            goarch: arm64
+            runner: windows-11-arm
+            libname: grok-panel.dll
+            msystem: CLANGARM64
+            msys_install: mingw-w64-clang-aarch64-clang
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install Linux cross compiler
+        if: runner.os == 'Linux' && matrix.apt_packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt_packages }}
+
+      - name: Setup MSYS2 toolchain (Windows)
+        if: matrix.goos == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: ${{ matrix.msys_install }}
+          path-type: inherit
+
+      - name: Resolve version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC_VERSION=$(grep -E 'pluginVersion\s+=' main.go | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+            TAG="v${VERSION}"
+          else
+            VERSION="${SRC_VERSION}"
+            TAG="v${VERSION}"
+          fi
+          if [[ -z "${VERSION}" ]]; then
+            echo "version is empty" >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_REF_TYPE}" == "tag" || ( "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.create_release }}" == "true" ) ]]; then
+            if [[ "${SRC_VERSION}" != "${VERSION}" ]]; then
+              echo "main.go pluginVersion=${SRC_VERSION} does not match release version=${VERSION}" >&2
+              exit 1
+            fi
+          fi
+          ASSET="grok-panel_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.zip"
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+            echo "asset=${ASSET}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved version=${VERSION} asset=${ASSET}"
+
+      - name: Build plugin library
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          OUT="dist/${{ matrix.libname }}"
+
+          if [[ "${{ matrix.goos }}" == "linux" && "${{ matrix.goarch }}" == "arm64" ]]; then
+            export CC=aarch64-linux-gnu-gcc
+            export CXX=aarch64-linux-gnu-g++
+          fi
+
+          if [[ "${{ matrix.goos }}" == "windows" && "${{ matrix.goarch }}" == "amd64" ]]; then
+            export PATH="/mingw64/bin:$PATH"
+            export CC=gcc
+            export CXX=g++
+          fi
+
+          if [[ "${{ matrix.goos }}" == "windows" && "${{ matrix.goarch }}" == "arm64" ]]; then
+            export PATH="/clangarm64/bin:$PATH"
+            export CC=clang
+            export CXX=clang++
+          fi
+
+          echo "GOOS=${GOOS} GOARCH=${GOARCH} CC=${CC:-default}"
+          go build -buildmode=c-shared -trimpath -ldflags="-s -w" -o "${OUT}" .
+          ls -lah dist/
+          test -f "${OUT}"
+
+      - name: Package zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          LIB="${{ matrix.libname }}"
+          test -f "${LIB}"
+          rm -f *.h
+          ASSET="${{ steps.meta.outputs.asset }}"
+          if command -v zip >/dev/null 2>&1; then
+            zip -9 "${ASSET}" "${LIB}"
+          else
+            # Windows runners usually lack zip(1)
+            powershell.exe -NoProfile -Command "Compress-Archive -Path '${LIB}' -DestinationPath '${ASSET}' -Force"
+          fi
+          ls -lah
+          test -f "${ASSET}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/${{ steps.meta.outputs.asset }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish Release
+    needs: build
+    if: >
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.create_release == true && inputs.version != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            TAG="${GITHUB_REF_NAME}"
+          else
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+            TAG="v${VERSION}"
+          fi
+          SRC_VERSION=$(grep -E 'pluginVersion\s+=' main.go | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [[ "${SRC_VERSION}" != "${VERSION}" ]]; then
+            echo "main.go pluginVersion=${SRC_VERSION} does not match release version=${VERSION}" >&2
+            exit 1
+          fi
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: build-*
+          merge-multiple: true
+
+      - name: Prepare assets and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          find release-assets -type f -name 'grok-panel_*.zip' -exec cp -f {} out/ \;
+          cd out
+          ls -lah
+          count=$(ls -1 grok-panel_*.zip 2>/dev/null | wc -l | tr -d ' ')
+          echo "zip count=${count}"
+          if [[ "${count}" -lt 1 ]]; then
+            echo "no zip assets found" >&2
+            find ../release-assets -print >&2 || true
+            exit 1
+          fi
+          sha256sum grok-panel_*.zip | tee checksums.txt
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            out/grok-panel_*.zip
+            out/checksums.txt
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post-release reminder
+        run: |
+          cat <<EOF
+          Release ${{ steps.meta.outputs.tag }} published.
+
+          CPA 插件商店还需要把 registry.json 的 version 改成 ${{ steps.meta.outputs.version }} 并推送到 store-sources 指向的分支。
+          EOF
